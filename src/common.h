@@ -19,6 +19,7 @@ __asm__(".symver dlerror,dlerror@GLIBC_2.0");
 
 #define INTERNAL __attribute__((visibility("hidden")))
 
+INTERNAL void keys_enable_extra(void);      /* F16-F24, once their names exist (keys.c) */
 INTERNAL int is_game(void);                 /* the game itself, not a helper process */
 INTERNAL int env_int(const char *name, int def);
 INTERNAL void *sdl_sym(const char *name);   /* the runtime SDL's function; aborts if missing */

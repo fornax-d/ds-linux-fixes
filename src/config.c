@@ -8,6 +8,8 @@
  * mod opens bare names and we answer them:
  *   "ds_linux_options"  -> the file above
  *   "ds_linux_status"   -> what this run uses, from memory
+ *   "ds_linux_keys"     -> turns F16-F24 on (keys.c); the mod reads it once it
+ *                          has added their names
  * Without us both fail, so the page knows the library isn't loaded. */
 #include "common.h"
 #include <fcntl.h>
@@ -18,6 +20,7 @@
 
 #define OPTIONS_FILE "ds_linux_options"
 #define STATUS_FILE "ds_linux_status"
+#define KEYS_FILE "ds_linux_keys"
 
 static const char *const keys[] = {
     "DS_WAYLAND", "DS_ZINK", "DS_FPS_LIMIT", "DS_SWAP_INTERVAL", "SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS",
@@ -43,8 +46,9 @@ static void apply_options(const char *path) {
     buf[len] = 0;
     char *p = buf, *line;
     while ((line = strsep(&p, "\n"))) {
-        char *eq = strchr(line, '='), *v = eq + 1;
+        char *eq = strchr(line, '=');
         if (!eq || !known_key(line, (size_t)(eq - line))) continue;
+        char *v = eq + 1;
         size_t vn = strspn(v, "abcdefghijklmnopqrstuvwxyz0123456789");
         if (!vn || (v[vn] != 0 && v[vn] != '\r')) continue;
         v[vn] = *eq = 0;
@@ -99,10 +103,22 @@ static int named(const char *path, const char *name) {
     return path && !strcmp(slash ? slash + 1 : path, name);
 }
 
-static int status_fd(void) {
-    int fd = (int)syscall(SYS_memfd_create, STATUS_FILE, 0);
+/* Our answer to a plain read of one of our in-memory files, or -1 to let it through. */
+static int answer_fd(const char *path) {
+    const char *text;
+    int len;
+    if (!status_len) return -1;
+    if (named(path, STATUS_FILE)) {
+        text = status, len = status_len;
+    } else if (named(path, KEYS_FILE)) {
+        keys_enable_extra();
+        text = "", len = 0;
+    } else {
+        return -1;
+    }
+    int fd = (int)syscall(SYS_memfd_create, "ds_linux", 0);
     if (fd < 0) return -1;
-    if (write(fd, status, status_len) != status_len || lseek(fd, 0, SEEK_SET) != 0) {
+    if (write(fd, text, len) != len || lseek(fd, 0, SEEK_SET) != 0) {
         close(fd);
         return -1;
     }
@@ -121,8 +137,8 @@ FILE *fopen(const char *path, const char *mode) {
     if (!real) real = (FILE *(*)(const char *, const char *))libc_sym("fopen");
     if (options_path[0] && named(path, OPTIONS_FILE))
         return real(options_path, mode);
-    if (status_len && named(path, STATUS_FILE) && mode[0] == 'r' && !strchr(mode, '+')) {
-        int fd = status_fd();
+    if (mode[0] == 'r' && !strchr(mode, '+')) {
+        int fd = answer_fd(path);
         FILE *f = fd >= 0 ? fdopen(fd, "r") : NULL;
         if (f) return f;
         if (fd >= 0) close(fd);
@@ -134,7 +150,7 @@ int open(const char *path, int flags, ...) {
     static int (*real)(const char *, int, ...);
     if (!real) real = (int (*)(const char *, int, ...))libc_sym("open");
     mode_t mode = 0;
-    if (flags & O_CREAT) {
+    if ((flags & O_CREAT) || (flags & O_TMPFILE) == O_TMPFILE) {
         va_list ap;
         va_start(ap, flags);
         mode = va_arg(ap, mode_t);
@@ -142,8 +158,8 @@ int open(const char *path, int flags, ...) {
     }
     if (options_path[0] && named(path, OPTIONS_FILE))
         return real(options_path, flags, mode);
-    if (status_len && named(path, STATUS_FILE) && (flags & O_ACCMODE) == O_RDONLY) {
-        int fd = status_fd();
+    if ((flags & O_ACCMODE) == O_RDONLY) {
+        int fd = answer_fd(path);
         if (fd >= 0) return fd;
     }
     return real(path, flags, mode);

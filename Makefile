@@ -5,7 +5,7 @@
 CC     ?= cc
 CFLAGS ?= -O2
 RUNTIME_SDL ?= /usr/lib/i386-linux-gnu/sdl2-compat/libSDL2-2.0.so.0
-SRC := src/common.c src/sdl.c src/fps.c src/glx.c src/config.c
+SRC := src/common.c src/sdl.c src/fps.c src/glx.c src/config.c src/keys.c
 BUILD ?= build
 
 all: $(BUILD)/ds_fixes.so
@@ -30,6 +30,6 @@ check: all
 	@readelf -dW $(BUILD)/ds_fixes.so | grep -E 'NEEDED|SONAME'
 
 clean:
-	rm -rf build
+	rm -rf $(BUILD)
 
 .PHONY: all prebuilt check clean

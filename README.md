@@ -8,6 +8,7 @@ Starve (Steam, 32-bit). Game files are not modified. Sister project of
   SDL is X11-only), with the game's mouse handling kept correct.
 - **No 60 fps cap**, or any cap with accurate frame pacing.
 - **NVIDIA GPU on Wayland** through Zink (see below).
+- **F13–F24 keys** (e.g. from mouse or keyboard macros), which the game ignores.
 
 Needs Steam's default Linux runtime for the game. Tested with game build
 12527201 (all DLCs), Intel and NVIDIA, KDE Plasma.
@@ -62,6 +63,21 @@ through Vulkan instead; it needs 32-bit Mesa and the 32-bit Vulkan driver
 
 `GL_RENDERER` in `~/.klei/DoNotStarve/log.txt` shows the GPU.
 
+## F13–F24
+
+The game drops these keys: its key table has no entries for them, on X11 and
+Wayland alike. The library fills them in, so they work as in-game keys and can
+be bound in Controls:
+
+- **F13–F15** always, with the game's own codes and names.
+- **F16–F24** only with the Linux options mod enabled. The game has no names
+  for them, and a key without a name breaks prompts and Controls, so the mod
+  adds the names and then switches them on.
+
+Some desktops treat some of these keys as special keys (KDE's default layout:
+F20 mutes the microphone, F21–F23 toggle the touchpad) and may grab them before
+the game sees them.
+
 ## Notes
 
 - **Game doesn't start:** it runs outside Steam's runtime; remove the launch
@@ -71,7 +87,8 @@ through Vulkan instead; it needs 32-bit Mesa and the 32-bit Vulkan driver
 - **Steam overlay doesn't work on Wayland:** Steam draws it for OpenGL games
   only through GLX. Use `DS_WAYLAND=0` when you need the overlay.
 - **After a game update** that changes the patched code, the fps part prints
-  `unknown game build` and leaves the 60 fps cap; the rest keeps working.
+  `unknown game build` and leaves the 60 fps cap (`unknown game build, F13-F24
+  not enabled` for the keys); the rest keeps working.
 - `ERROR: ld.so: object '$ORIGIN/shims/ds_fixes.so' … ignored` comes from
   Steam's helper processes and is harmless.
 
@@ -92,7 +109,10 @@ soname, so it takes its place, and depends on the runtime's
   display and then reads uninitialized values; it now gets 1.4.
 - `src/config.c` – reads the Linux options mod's file at start and reports
   what the run uses to the mod. The game's Lua opens only relative paths, so
-  the mod opens bare names and the library answers them.
+  the mod opens bare names and the library answers them; opening
+  `ds_linux_keys` switches on F16–F24.
+- `src/keys.c` – fills the F13–F24 entries of the game's scancode → key table
+  (found by its contents), F16–F24 with unused codes 323–331.
 
 `make` builds into `build/`, `make check` lists the glibc versions and
 libraries needed (glibc 2.17 is enough), `make prebuilt` refreshes `prebuilt/`.
