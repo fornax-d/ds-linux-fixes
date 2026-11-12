@@ -41,6 +41,10 @@ Put them in front, e.g. `DS_FPS_LIMIT=144 LD_PRELOAD=… %command%`.
 | `DS_SWAP_INTERVAL` | game's | `0`: vsync off |
 | `SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS` | `0` | `1`: minimize fullscreen on focus loss (SDL default) |
 
+The same settings can be changed in game: the **Linux options** mod (Steam
+Workshop) adds a Linux page to Options. It saves them to
+`~/.klei/DoNotStarve/ds_linux_options`, read at the next start; launch options win.
+
 With vsync a cap only helps at or above the refresh rate. Don't combine it with
 MangoHud's `fps_limit`.
 
@@ -84,6 +88,9 @@ soname, so it takes its place, and depends on the runtime's
   sleeping to absolute deadlines.
 - `src/glx.c` – on Wayland the game's GLEW asks for the GLX version of a NULL
   display and then reads uninitialized values; it now gets 1.4.
+- `src/config.c` – reads the Linux options mod's file at start and reports
+  what the run uses to the mod. The game's Lua opens only relative paths, so
+  the mod opens bare names and the library answers them.
 
 `make` builds into `build/`, `make check` lists the glibc versions and
 libraries needed (glibc 2.17 is enough), `make prebuilt` refreshes `prebuilt/`.
